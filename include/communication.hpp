@@ -82,6 +82,7 @@ public:
                 qDebug() << "communication::read(): addr is null";
                 return data;
             }
+            qDebug() << _udpRecvQueue.front().first << ":" << _udpRecvQueue.front().second;
             *addr = _udpRecvQueue.front();
             _udpRecvQueue.pop();
         }
@@ -135,7 +136,7 @@ private slots:
         qDebug() << "from: " << addr.first.toString() << ":" << addr.second;
         _udpRecvQueue.push(addr);
         _recvQueue.push(data);
-        _recvTypeQueue.push(0x02);
+        _recvTypeQueue.push(0x03);
         emit readyFrame();
     }
 public:
