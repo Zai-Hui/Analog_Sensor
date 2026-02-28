@@ -130,11 +130,30 @@ public:
 // ------------------------------------数据发送处理模块-------------------------------------- //
 private:
     // UDP数据发送
-    void sendByUdp(QByteArray data);
+    void sendByUdp(const QByteArray& data, const std::pair<QHostAddress, uint16_t>& addr) {
+        _udpSocket->writeDatagram(data, addr.first, addr.second);
+        qDebug() << "----------------------------------";
+        qDebug() << "Udp-发送: " << data.toHex();
+        qDebug() << "to: " << addr.first.toString() << ":" << addr.second;
+    };
+    // 串口数据发送
+    void sendBySerialPort(QByteArray data) {
+        uint16_t crc = crc16Calculate(data);
+        data.append(static_cast<char>(crc >> 8));
+        data.append(static_cast<char>(crc & 0xFF));
+        _serialPort->write(data);
+        qDebug() << "----------------------------------";
+        qDebug() << "COM1-发送: " << data.toHex();
+    }
     // 串口数据发送(主机->从机)
-    void sendBySerialToSlave(QByteArray data);
+    void sendBySerialToSlave(const QByteArray& data) {
+        sendBySerialPort(data);
+        _timeOut->start();
+    }
     // 串口数据发送(从机->主机)
-    void sendBySerialToHost(QByteArray data);
+    void sendBySerialToHost(const QByteArray& data) {
+        sendBySerialPort(data);
+    }
 
 // -------------------------------------信号定义模块---------------------------------------- //
 signals:
