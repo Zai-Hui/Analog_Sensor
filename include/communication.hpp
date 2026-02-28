@@ -65,10 +65,47 @@ public:
     }
 
 // -----------------------------------读取&写入接口模块-------------------------------------- //
+public:
     // 获取接收到的数据
-    QByteArray read();
+    QByteArray read(uint8_t* type, std::pair<QHostAddress, uint16_t>* addr = nullptr) {
+        QByteArray data;
+        if (_recvQueue.empty() == true) {
+            qDebug() << "communication::read(): queue is empty";
+            return data;
+        }
+        data.append(_recvQueue.front());
+        *type = _recvTypeQueue.front();
+        _recvQueue.pop();
+        _recvTypeQueue.pop();
+        if (*type == 0x03) {
+            if (addr == nullptr) {
+                qDebug() << "communication::read(): addr is null";
+                return data;
+            }
+            _udpRecvQueue.push(*addr);
+        }
+        return data;
+    }
     // 发送数据
-    bool write(const QByteArray& data, uint8_t type);
+    bool write(const QByteArray& data, uint8_t type, std::pair<QHostAddress, uint16_t>* addr = nullptr) {
+        if (type == 0x01) {
+            _sendQueue.push(data);
+            _sendTypeQueue.push(type);
+        }
+        else if (type == 0x02) {
+            _sendQueue.push(data);
+            _sendTypeQueue.push(type);
+        }
+        else if (type == 0x03) {
+            _sendQueue.push(data);
+            _sendTypeQueue.push(type);
+            _udpSendQueue.push(*addr);
+        }
+        else {
+            qDebug() << "type: " << type << ":" << data.toHex() << ":error";
+            return false;
+        }
+    }
 
 // ------------------------------------数据读取处理模块-------------------------------------- //
 private slots:
@@ -80,7 +117,7 @@ private slots:
         qDebug() << "COM1-接收: " << data.toHex();
         if (crc16Checksum(data) == true) {
             _recvQueue.push(data.mid(0, data.size() - 2));
-            _typeQueue.push(0x01);
+            _recvTypeQueue.push(0x01);
             emit readyFrame();
         }
     }
@@ -96,7 +133,7 @@ private slots:
         qDebug() << "from: " << addr.first.toString() << ":" << addr.second;
         _udpRecvQueue.push(addr);
         _recvQueue.push(data);
-        _typeQueue.push(0x02);
+        _recvTypeQueue.push(0x02);
         emit readyFrame();
     }
 public:
@@ -177,7 +214,8 @@ private:
     // 接收缓冲区成员变量
     std::queue<QByteArray> _recvQueue;                              // 接收缓冲区
     std::queue<QByteArray> _sendQueue;                              // 发送缓冲区
-    std::queue<uint8_t> _typeQueue;                                 // 发送方式队列
+    std::queue<uint8_t> _recvTypeQueue;                             // 接收方式队列
+    std::queue<uint8_t> _sendTypeQueue;                             // 发送方式队列
 };
 
 #endif //ANALOG_SENSOR_COMMUNICATION_HPP
