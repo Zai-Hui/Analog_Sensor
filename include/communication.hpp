@@ -105,6 +105,7 @@ public:
             qDebug() << "type: " << type << ":" << data.toHex() << ":error";
             return false;
         }
+        send();
     }
 
 // ------------------------------------数据读取处理模块-------------------------------------- //
@@ -166,6 +167,32 @@ public:
 
 // ------------------------------------数据发送处理模块-------------------------------------- //
 private:
+    // 主发送函数
+    void send() {
+        while (_isSending == false && _sendQueue.empty() == false) {
+            _isSending = true;
+            uint8_t type = _sendTypeQueue.front();
+            QByteArray data = _sendQueue.front();
+            _sendTypeQueue.pop();
+            _sendQueue.pop();
+            if (type == 0x01) {
+                sendBySerialToHost(data);
+                _isSending = false;
+            }
+            else if (type == 0x02) {
+                sendBySerialToSlave(data);
+            }
+            else if (type == 0x03) {
+                std::pair<QHostAddress, uint16_t> addr = _udpSendQueue.front();
+                _udpSendQueue.pop();
+                sendByUdp(data, addr);
+                _isSending = false;
+            }
+            else {
+                qDebug() << "communication: send(): send type error: " << type;
+            }
+        }
+    }
     // UDP数据发送
     void sendByUdp(const QByteArray& data, const std::pair<QHostAddress, uint16_t>& addr) {
         _udpSocket->writeDatagram(data, addr.first, addr.second);
@@ -191,6 +218,13 @@ private:
     void sendBySerialToHost(const QByteArray& data) {
         sendBySerialPort(data);
     }
+private slots:
+    // 串口数据发送(主机->从机)超时处理
+    void sendBySerialTimeout() {
+        qDebug() << "---------------------------------";
+        qDebug() << "从机响应超时";
+        _isSending = false;
+    }
 
 // -------------------------------------信号定义模块---------------------------------------- //
 signals:
@@ -201,6 +235,8 @@ signals:
 
 // -------------------------------------通信成员变量---------------------------------------- //
 private:
+    bool _isSending = false;                                        // 当前发送状态
+
     // 串口通信成员变量
     QSerialPort* _serialPort = nullptr;                             // QT串口对象
     QTimer* _timeOut = nullptr;                                     // 超时计时器
