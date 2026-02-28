@@ -19,9 +19,9 @@ public:
             uint8_t type;
             std::pair<QHostAddress, uint16_t> addr;
             QByteArray data = communication->read(&type, &addr);
-            qDebug() << "type:" << type;
-            qDebug() << "addr:" << addr.first << ":" << addr.second;
-            qDebug() << "data:" << data.toHex();
+            qDebug() << "[test] type:" << type;
+            qDebug() << "[test] addr:" << addr.first << ":" << addr.second;
+            qDebug() << "[test] data:" << data.toHex();
         });
     }
 private:
