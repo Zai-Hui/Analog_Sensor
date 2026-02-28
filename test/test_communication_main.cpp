@@ -2,9 +2,11 @@
 // Created by Zai_Hui on 2026/2/27.
 //
 
-#include "../include/communication.hpp"
-
-int main() {
-    Communication comm;
-    return 0;
+#include"test _communication.hpp"
+#include <QApplication>
+int main(int argc, char *argv[]) {
+    QCoreApplication app(argc, argv);
+    Test test;
+    test.start();
+    return QCoreApplication::exec();
 }

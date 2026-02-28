@@ -17,7 +17,8 @@ find_package(Qt5 COMPONENTS
         SerialBus
         REQUIRED)
 
-add_executable(test_communication test/test_communication_main.cpp include/communication.hpp)
+add_executable(test_communication test/test_communication_main.cpp include/communication.hpp
+        "test/test _communication.hpp")
 set_target_properties(test_communication PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_EXE_DIR}
 )
