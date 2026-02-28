@@ -82,7 +82,8 @@ public:
                 qDebug() << "communication::read(): addr is null";
                 return data;
             }
-            _udpRecvQueue.push(*addr);
+            *addr = _udpRecvQueue.front();
+            _udpRecvQueue.pop();
         }
         return data;
     }
