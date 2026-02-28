@@ -55,7 +55,7 @@ public:
     bool initUdp() {
         _udpSocket = new QUdpSocket;
         if (_udpSocket->bind(QHostAddress::Any, _port) == false) {
-            qDebug() << "initUdp: bind error";
+            qDebug() << "initUdp(): bind error";
             qDebug() << _udpSocket->errorString();
             return false;
         }
@@ -73,9 +73,59 @@ public:
 // ------------------------------------数据读取处理模块-------------------------------------- //
 private slots:
     // 读取串口数据
-    void readFromSerialPort() {;}
+    void readFromSerialPort() {
+        _timeOut->stop();
+        QByteArray data = _serialPort->readAll();
+        qDebug() << "----------------------------------";
+        qDebug() << "COM1-接收: " << data.toHex();
+        if (crc16Checksum(data) == true) {
+            _recvQueue.push(data.mid(0, data.size() - 2));
+            _typeQueue.push(0x01);
+            emit readyFrame();
+        }
+    }
     // 读取UDP数据
-    void readFromUdp() {;}
+    void readFromUdp() {
+        int size = static_cast<int>(_udpSocket->pendingDatagramSize());
+        QByteArray data;
+        data.resize(size);
+        std::pair<QHostAddress, uint16_t> addr;
+        _udpSocket->readDatagram(data.data(), size, &addr.first, &addr.second);
+        qDebug() << "----------------------------------";
+        qDebug() << "Udp-接收: " << data.toHex();
+        qDebug() << "from: " << addr.first.toString() << ":" << addr.second;
+        _udpRecvQueue.push(addr);
+        _recvQueue.push(data);
+        _typeQueue.push(0x02);
+        emit readyFrame();
+    }
+public:
+    // crc16 校验
+    static bool crc16Checksum(const QByteArray& data) {
+        uint16_t crc16 = static_cast<unsigned char>(data[data.size() - 1]);
+        crc16 = (crc16 << 8) | static_cast<unsigned char>(data[data.size() - 2]);
+        if (crc16 == crc16Calculate(data.mid(0, data.size() - 2))) {
+            qDebug() << "crc16 校验通过";
+            return true;
+        }
+        else {
+            qDebug() << "crc16 校验失败";
+            return false;
+        }
+    }
+    // crc16 校验码计算
+    static uint16_t crc16Calculate(const QByteArray& crcData) {
+        uint16_t crc = 0xFFFF;
+        for (int i = 0; i < crcData.length(); i++) {
+            crc = crc ^ (crcData[i] & 0x00FF);
+            for (int num = 0; num < 8; num++) {
+                bool flag = crc & 0x0001;
+                crc = crc >> 1;
+                if (flag) crc = crc ^ 0xA001;
+            }
+        }
+        return crc;
+    }
 
 // ------------------------------------数据发送处理模块-------------------------------------- //
 private:
@@ -89,24 +139,26 @@ private:
 // -------------------------------------信号定义模块---------------------------------------- //
 signals:
     // 可读信号
-    void readFrame();
+    void readyFrame();
     // 超时信号
     void timeOut();
 
 // -------------------------------------通信成员变量---------------------------------------- //
 private:
     // 串口通信成员变量
-    QSerialPort* _serialPort = nullptr; // QT串口对象
-    QTimer* _timeOut = nullptr;         // 超时计时器
+    QSerialPort* _serialPort = nullptr;                             // QT串口对象
+    QTimer* _timeOut = nullptr;                                     // 超时计时器
 
     // UDP通信成员变量
-    QUdpSocket *_udpSocket = nullptr;   // UDP套接字对象
-    uint16_t _port = 0x0000;            // 绑定端口号
+    QUdpSocket *_udpSocket = nullptr;                               // UDP套接字对象
+    uint16_t _port = 10001;                                         // 绑定端口号
+    std::queue<std::pair<QHostAddress, uint16_t>> _udpSendQueue;    // 接收地址信息
+    std::queue<std::pair<QHostAddress, uint16_t>> _udpRecvQueue;    // 发送地址信息
 
     // 接收缓冲区成员变量
-    std::queue<QByteArray> _recvQueue;  // 接收缓冲区
-    std::queue<QByteArray> _sendQueue;  // 发送缓冲区
-    std::queue<uint8_t> _typeQueue;     // 发送方式队列
+    std::queue<QByteArray> _recvQueue;                              // 接收缓冲区
+    std::queue<QByteArray> _sendQueue;                              // 发送缓冲区
+    std::queue<uint8_t> _typeQueue;                                 // 发送方式队列
 };
 
 #endif //ANALOG_SENSOR_COMMUNICATION_HPP
