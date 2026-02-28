@@ -25,6 +25,7 @@ public:
             qDebug() << "Communication init(): initUdp(): error";
             return false;
         }
+        connect(this, &Communication::readySend, this, &Communication::send);
         qDebug() << "Communication init(): success";
         return true;
     }
@@ -48,7 +49,7 @@ public:
         _timeOut->setSingleShot(true);
         // 关联信号
         connect(_serialPort, &QSerialPort::readyRead, this, &Communication::readFromSerialPort);
-        connect(_timeOut, &QTimer::timeout, this, &Communication::timeOut);
+        connect(_timeOut, &QTimer::timeout, this, &Communication::sendBySerialTimeout);
         return true;
     }
     // UDP通信初始化
@@ -89,7 +90,7 @@ public:
         return data;
     }
     // 发送数据
-    bool write(const QByteArray& data, uint8_t type, std::pair<QHostAddress, uint16_t>* addr = nullptr) {
+    void write(const QByteArray& data, uint8_t type, std::pair<QHostAddress, uint16_t>* addr = nullptr) {
         if (type == 0x01) {
             _sendQueue.push(data);
             _sendTypeQueue.push(type);
@@ -105,9 +106,9 @@ public:
         }
         else {
             qDebug() << "type: " << type << ":" << data.toHex() << ":error";
-            return false;
+            return;
         }
-        send();
+        emit readySend();
     }
 
 // ------------------------------------数据读取处理模块-------------------------------------- //
@@ -169,6 +170,34 @@ public:
 
 // ------------------------------------数据发送处理模块-------------------------------------- //
 private:
+    // UDP数据发送
+    void sendByUdp(const QByteArray& data, const std::pair<QHostAddress, uint16_t>& addr) {
+        _udpSocket->writeDatagram(data, addr.first, addr.second);
+        qDebug() << "----------------------------------";
+        qDebug() << "Udp-发送: " << data.toHex();
+        qDebug() << "to: " << addr.first.toString() << ":" << addr.second;
+    };
+    // 串口数据发送
+    void sendBySerialPort(QByteArray data) {
+        uint16_t crc = crc16Calculate(data);
+        data.append(static_cast<char>(crc >> 8));
+        data.append(static_cast<char>(crc & 0xFF));
+        _serialPort->write(data);
+        qDebug() << "----------------------------------";
+        qDebug() << "COM1-发送: " << data.toHex();
+    }
+    // 串口数据发送(主机->从机)
+    void sendBySerialToSlave(const QByteArray& data) {
+        qDebug() << "主机->从机";
+        sendBySerialPort(data);
+        _timeOut->start();
+    }
+    // 串口数据发送(从机->主机)
+    void sendBySerialToHost(const QByteArray& data) {
+        qDebug() << "从机->主机";
+        sendBySerialPort(data);
+    }
+private slots:
     // 主发送函数
     void send() {
         while (_isSending == false && _sendQueue.empty() == false) {
@@ -195,43 +224,20 @@ private:
             }
         }
     }
-    // UDP数据发送
-    void sendByUdp(const QByteArray& data, const std::pair<QHostAddress, uint16_t>& addr) {
-        _udpSocket->writeDatagram(data, addr.first, addr.second);
-        qDebug() << "----------------------------------";
-        qDebug() << "Udp-发送: " << data.toHex();
-        qDebug() << "to: " << addr.first.toString() << ":" << addr.second;
-    };
-    // 串口数据发送
-    void sendBySerialPort(QByteArray data) {
-        uint16_t crc = crc16Calculate(data);
-        data.append(static_cast<char>(crc >> 8));
-        data.append(static_cast<char>(crc & 0xFF));
-        _serialPort->write(data);
-        qDebug() << "----------------------------------";
-        qDebug() << "COM1-发送: " << data.toHex();
-    }
-    // 串口数据发送(主机->从机)
-    void sendBySerialToSlave(const QByteArray& data) {
-        sendBySerialPort(data);
-        _timeOut->start();
-    }
-    // 串口数据发送(从机->主机)
-    void sendBySerialToHost(const QByteArray& data) {
-        sendBySerialPort(data);
-    }
-private slots:
     // 串口数据发送(主机->从机)超时处理
     void sendBySerialTimeout() {
         qDebug() << "---------------------------------";
         qDebug() << "从机响应超时";
         _isSending = false;
+        emit readySend();
     }
 
 // -------------------------------------信号定义模块---------------------------------------- //
 signals:
     // 可读信号
     void readyFrame();
+    // 可发送信号
+    void readySend();
     // 超时信号
     void timeOut();
 
