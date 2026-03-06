@@ -24,7 +24,8 @@ set_target_properties(test_communication PROPERTIES
 )
 
 add_executable(Analog_Sensor src/main.cpp
-        include/communication.hpp)
+        include/communication.hpp
+        include/presentation.hpp)
 
 target_link_libraries(Analog_Sensor
         Qt5::Core
