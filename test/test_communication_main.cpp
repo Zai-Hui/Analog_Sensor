@@ -7,6 +7,7 @@
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     Test test;
+    test.start_recv();
     test.start_send();
     return QCoreApplication::exec();
 }
