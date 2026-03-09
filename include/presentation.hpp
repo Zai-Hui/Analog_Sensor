@@ -58,15 +58,23 @@ public:
         }
     }
     // 获取解码后数据
-    QByteArray getDecode(uint8_t& type) {
-        if (_dataDecode.empty() == false) {
-            std::pair<QByteArray, uint8_t> data = _dataDecode.front();
-            _dataDecode.pop();
-            type = data.second;
-            return data.first;
-        }
-        qDebug() << "presentation:getDecode: no data need to get";
-        return QByteArray();
+    // modbus
+    void getDecodeModbus(uint8_t& host, uint8_t& funcCode, uint16_t& addr, uint16_t& size_oneData, uint8_t& len, std::vector<uint8_t>& data) {
+        host = _host;
+        funcCode = _funcCode;
+        addr = _addr;
+        size_oneData = _size_oneData;
+        len = _len;
+        data = _dataModbus;
+        return;
+    }
+    // csv
+    void getDecodeCsv(QVector<QStringList>& data) {
+        data = _dataCsv;
+    }
+    // json
+    void getDecodeModbus(std::vector<QStringList>& data) {
+        data = _dataJson;
     }
     // 获取编码后数据
     QByteArray getEncode(uint8_t& type, uint8_t& sendType) {
@@ -189,6 +197,7 @@ private:
 private:
     // 译码为modbus格式
     void encodeByModbus(const QByteArray& data) {
+
     }
     // 译码为csv格式
     void encodeByCsv(const QByteArray& data) {
