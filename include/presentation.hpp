@@ -7,13 +7,22 @@
 #include <QObject>
 #include <queue>
 #include <QDebug>
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 class Presentation : public QObject {
     Q_OBJECT
 // -------------------------------------初始化模块----------------------------------------- //
 public:
     void init() {
-
+        _json = new json;
+        if (_json != nullptr) {
+            qDebug() << "presentation:init";
+        }
+        else {
+            qDebug() << "presentation:init error";
+        }
     }
 // ------------------------------------用户接口模块---------------------------------------- //
 public:
@@ -90,6 +99,7 @@ private:
                 _dataModbus.push_back(data[index++]);
             }
         }
+        emit readyProcessModbus();
     }
     // 处理csv格式的数据
     void decodeByCsv(const QByteArray& BData) {
@@ -104,15 +114,12 @@ private:
         }
         // 获取表格列名
         QStringList columnsName = getLine(stringList[0]);
-        // 建立列名和列数的映射
-        for (int i = 0; i < columnsName.size(); i++) {
-            if (columnsName[i] != "") { _hash.insert(columnsName[i], i); }
-        }
         // 将数据存到_dataCsv中
-        for (int i = 1; i < stringList.size(); i++) {
+        for (int i = 0; i < stringList.size(); i++) {
             QStringList lineData = getLine(stringList[i]);
             _dataCsv.append(lineData);
         }
+        emit readyProcessCsv();
     }
     // 处理一行数据
     QStringList getLine(const QString& str) {
@@ -145,7 +152,38 @@ private:
     }
     // 处理json格式的数据
     void decodeByJson(const QByteArray& data) {
-
+        try {
+            *_json = json::parse(data.toStdString());
+        }
+        catch (json::parse_error& e) {
+            qDebug() << "josn处理异常" << e.what();
+        }
+        if (_json->is_array()) {
+            for (int i = 0; i < _json->size(); i++) {
+                QStringList lineData;
+                if ((*_json)[i].contains("温度")) { lineData.append(QString::number(1)); }
+                if ((*_json)[i].contains("湿度")) { lineData.append(QString::number(2)); }
+                if ((*_json)[i].contains("工作时长")) { lineData.append(QString::number(3)); }
+                if ((*_json)[i].contains("实时光强")) { lineData.append(QString::number(4)); }
+                if ((*_json)[i].contains("实时雨量")) { lineData.append(QString::number(5)); }
+                if ((*_json)[i].contains("1小时累计雨量")) { lineData.append(QString::number(6)); }
+                if ((*_json)[i].contains("6小时累计雨量")) { lineData.append(QString::number(7)); }
+                _dataJson.push_back(lineData);
+            }
+        }
+        // 2.是否是json
+        else if (_json->is_object()) {
+            QStringList lineData;
+            if (_json->contains("温度")) { lineData.append(QString::number(1)); }
+            if (_json->contains("湿度")) { lineData.append(QString::number(2)); }
+            if (_json->contains("工作时长")) { lineData.append(QString::number(3)); }
+            if (_json->contains("实时光强")) { lineData.append(QString::number(4)); }
+            if (_json->contains("实时雨量")) { lineData.append(QString::number(5)); }
+            if (_json->contains("1小时累计雨量")) { lineData.append(QString::number(6)); }
+            if (_json->contains("6小时累计雨量")) { lineData.append(QString::number(7)); }
+            _dataJson.push_back(lineData);
+        }
+        emit readyProcessJson();
     }
 // --------------------------------------译码模块----------------------------------------- //
 private:
@@ -165,7 +203,12 @@ signals:
     // 编码完成待发送信号
     void readySend();
     // 解码完成等待处理信号
-    void readyProcess();
+    // modbus
+    void readyProcessModbus();
+    // csv
+    void readyProcessCsv();
+    // json
+    void readyProcessJson();
 // -----------------------------------解码译码成员变量-------------------------------------- //
 public:
     // 解码缓冲区
@@ -188,6 +231,9 @@ public:
     // csv格式成员
     QMap<QString, int> _hash;
     QVector<QStringList> _dataCsv;
+    // json格式成员
+    json* _json;
+    std::vector<QStringList> _dataJson;
 };
 
 #endif //ANALOG_SENSOR_PRESENTATION_HPP
