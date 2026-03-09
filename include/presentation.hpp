@@ -196,15 +196,15 @@ private:
 // --------------------------------------译码模块----------------------------------------- //
 private:
     // 译码为modbus格式
-    void encodeByModbus(const QByteArray& data) {
+    void encodeByModbus(uint8_t host, uint8_t funcCode, uint16_t addr, uint16_t size_oneData, uint8_t len, const std::vector<uint8_t>& data) {
 
     }
     // 译码为csv格式
-    void encodeByCsv(const QByteArray& data) {
+    void encodeByCsv(const QVector<QStringList>& data) {
 
     }
     // 译码为json格式
-    void encodeByJson(const QByteArray& data) {
+    void encodeByJson(const std::vector<QStringList>& data) {
 
     }
 // --------------------------------------信号定义----------------------------------------- //
