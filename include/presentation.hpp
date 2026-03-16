@@ -42,21 +42,7 @@ public:
             decodeByModbus(data);
         }
     }
-    // 编码操作入口 //0x01:modbus 0x02:csv 0x03:json
-    void encode(const QByteArray& data, const uint8_t type) {
-        if (type == 0x01) {
-            encodeByModbus(data);
-        }
-        else if (type == 0x02) {
-            encodeByCsv(data);
-        }
-        else if (type == 0x03) {
-            encodeByJson(data);
-        }
-        else {
-            qDebug() << "presentation:encode: type error";
-        }
-    }
+
     // 获取解码后数据
     // modbus
     void getDecodeModbus(uint8_t& host, uint8_t& funcCode, uint16_t& addr, uint16_t& size_oneData, uint8_t& len, std::vector<uint8_t>& data) {
@@ -73,17 +59,15 @@ public:
         data = _dataCsv;
     }
     // json
-    void getDecodeModbus(std::vector<QStringList>& data) {
+    void getDecodeJson(std::vector<QStringList>& data) {
         data = _dataJson;
     }
     // 获取编码后数据
-    QByteArray getEncode(uint8_t& type, uint8_t& sendType) {
+    QByteArray getEncode(uint8_t& sendType) {
         if (_dataEncode.empty() == false) {
             std::pair<QByteArray, uint8_t> data = _dataEncode.front();
-            sendType = _dataSendType.front();
             _dataEncode.pop();
-            _dataSendType.pop();
-            type = data.second;
+            sendType = data.second;
             return data.first;
         }
         qDebug() << "presentation:getEncode: no data need to get";
@@ -193,19 +177,52 @@ private:
         }
         emit readyProcessJson();
     }
-// --------------------------------------译码模块----------------------------------------- //
-private:
-    // 译码为modbus格式
-    void encodeByModbus(uint8_t host, uint8_t funcCode, uint16_t addr, uint16_t size_oneData, uint8_t len, const std::vector<uint8_t>& data) {
-
+// --------------------------------------编码模块----------------------------------------- //
+public:
+    // 编码为modbus格式
+    void encodeByModbus(const QByteArray& data, uint8_t sendType) {
+        std::pair<QByteArray, uint8_t> encode;
+        encode.first = data;
+        encode.second = sendType;
+        _dataEncode.push(encode);
+        emit readySend();
     }
-    // 译码为csv格式
-    void encodeByCsv(const QVector<QStringList>& data) {
-
+    // 编码为csv格式
+    void encodeByCsv(const QVector<QStringList>& data, uint8_t sendType) {
+        std::pair<QByteArray, uint8_t> encode;
+        for (int row = 0; row < data.size(); row++) {
+            for (int col = 0; col < data[row].size(); col++) {
+                encode.first += data[row][col];
+                encode.first += ',';
+            }
+            encode.first.chop(1);
+            encode.first += '\n';
+        }
+        encode.second = sendType;
+        _dataEncode.push(encode);
+        emit readySend();
     }
-    // 译码为json格式
-    void encodeByJson(const std::vector<QStringList>& data) {
-
+    // 编码为json格式
+    void encodeByJson(const std::vector<QStringList>& data, uint8_t sendType) {
+        std::pair<QByteArray, uint8_t> encode;
+        json dataAll;
+        for (int index = 0; index + 1 < data.size(); index = index + 2) {
+            json lineData;
+            for (int i = 0; i < data[index].size(); i++) {
+                if (data[index][i] == QString::number(1)) { lineData["温度"] = data[index + 1][i].toStdString(); }
+                if (data[index][i] == QString::number(2)) { lineData["湿度"] = data[index + 1][i].toStdString(); }
+                if (data[index][i] == QString::number(3)) { lineData["工作时长"] = data[index + 1][i].toStdString(); }
+                if (data[index][i] == QString::number(4)) { lineData["实时光强"] = data[index + 1][i].toStdString(); }
+                if (data[index][i] == QString::number(5)) { lineData["实时雨量"] = data[index + 1][i].toStdString(); }
+                if (data[index][i] == QString::number(6)) { lineData["1小时累计雨量"] = data[index + 1][i].toStdString(); }
+                if (data[index][i] == QString::number(7)) { lineData["6小时累计雨量"] = data[index + 1][i].toStdString(); }
+                dataAll.push_back(lineData);
+            }
+        }
+        encode.first = QString::fromStdString(dataAll.dump(2)).toUtf8();
+        encode.second = sendType;
+        _dataEncode.push(encode);
+        emit readySend();
     }
 // --------------------------------------信号定义----------------------------------------- //
 signals:
@@ -222,9 +239,8 @@ signals:
 public:
     // 解码缓冲区
     std::queue<std::pair<QByteArray, uint8_t>> _dataDecode;
-    // 译码缓冲区
+    // 编码缓冲区
     std::queue<std::pair<QByteArray, uint8_t>> _dataEncode;
-    std::queue<uint8_t> _dataSendType;
     // 数据处理回调方法
     using func = std::function<void()>;
     func* processByModbus = nullptr;

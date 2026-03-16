@@ -18,8 +18,14 @@ find_package(Qt5 COMPONENTS
         REQUIRED)
 
 add_executable(test_communication test/test_communication_main.cpp include/communication.hpp
-        "test/test _communication.hpp")
+        "test/test_communication.hpp")
 set_target_properties(test_communication PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_EXE_DIR}
+)
+
+add_executable(test_presentation test/test_presentation_main.cpp include/presentation.hpp
+        "test/test_presentation.hpp")
+set_target_properties(test_presentation PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${TEST_EXE_DIR}
 )
 
@@ -37,6 +43,15 @@ target_link_libraries(Analog_Sensor
 )
 
 target_link_libraries(test_communication
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+        Qt5::Network
+        Qt5::SerialPort
+        Qt5::SerialBus
+)
+
+target_link_libraries(test_presentation
         Qt5::Core
         Qt5::Gui
         Qt5::Widgets
