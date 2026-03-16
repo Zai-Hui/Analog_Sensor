@@ -2,7 +2,7 @@
 // Created by Zai_Hui on 2026/2/27.
 //
 
-#include"test _communication.hpp"
+#include"test_communication.hpp"
 #include <QApplication>
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);

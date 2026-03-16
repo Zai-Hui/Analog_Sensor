@@ -206,6 +206,7 @@ public:
     void encodeByJson(const std::vector<QStringList>& data, uint8_t sendType) {
         std::pair<QByteArray, uint8_t> encode;
         json dataAll;
+        qDebug() << "encodeByJson";
         for (int index = 0; index + 1 < data.size(); index = index + 2) {
             json lineData;
             for (int i = 0; i < data[index].size(); i++) {
@@ -216,12 +217,13 @@ public:
                 if (data[index][i] == QString::number(5)) { lineData["实时雨量"] = data[index + 1][i].toStdString(); }
                 if (data[index][i] == QString::number(6)) { lineData["1小时累计雨量"] = data[index + 1][i].toStdString(); }
                 if (data[index][i] == QString::number(7)) { lineData["6小时累计雨量"] = data[index + 1][i].toStdString(); }
-                dataAll.push_back(lineData);
             }
+            if (lineData.is_null() == false) dataAll.push_back(lineData);
         }
         encode.first = QString::fromStdString(dataAll.dump(2)).toUtf8();
         encode.second = sendType;
         _dataEncode.push(encode);
+        qDebug() << "end";
         emit readySend();
     }
 // --------------------------------------信号定义----------------------------------------- //

@@ -3,8 +3,11 @@
 //
 
 #include "test_presentation.hpp"
+#include <QApplication>
 
-int main() {
-    test_presentation();
-    return 0;
+int main(int argc, char* argv[]) {
+    QCoreApplication app(argc, argv);
+    test_presentation test;
+    test.test_encode();
+    return app.exec();
 }
